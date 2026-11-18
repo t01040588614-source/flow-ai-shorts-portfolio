@@ -1,0 +1,115 @@
+name: flow
+
+# 서비스 로그(접속 IP 포함)는 용량 기준으로 순환 보관: 서비스마다 10MB × 5개, 넘으면 오래된 것부터 삭제.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  api:
+    build:
+      # Root context (not ./backend): the image also needs
+      # frontend/scripts/renderTimeline.mjs for timeline export, which is
+      # outside a ./backend-only build context. See backend/Dockerfile.
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        # scripts/deploy.sh sets this to the deployed commit; empty = "unknown" in the footer.
+        FLOW_GIT_COMMIT: ${FLOW_GIT_COMMIT:-}
+    ports:
+      # 127.0.0.1-only: reachable for local testing (matches this README),
+      # not from the internet. docker-compose.prod.yml adds Caddy on 80/443
+      # as the actual public entry point — see its comments.
+      - "127.0.0.1:8800:8800"
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      ENVIRONMENT: production
+      APP_ENV: production
+      API_PUBLIC_URL: http://127.0.0.1:8080
+      CORS_ORIGINS: http://127.0.0.1:8080,http://localhost:8080
+      # Empty default so a forgotten JWT_SECRET fails startup instead of using a dummy.
+      JWT_SECRET: ${JWT_SECRET:-}
+      # Video generation, renders and longform jobs run in the `worker` service below, not in the API:
+      # a long job never slows requests down, and workers can be scaled
+      # (docker compose up -d --scale worker=2). Set WORKER_MODE=inline (and drop the
+      # worker service) to run everything in one container like before.
+      WORKER_MODE: ${WORKER_MODE:-external}
+      # Render workspaces (logs, staged assets) on a shared volume, so the API can show
+      # the log of a render a worker ran.
+      FLOWSHORTS_RENDER_ROOT: /app/cache/renders
+    volumes:
+      - api-data:/app/data
+      - api-outputs:/app/outputs
+      - api-cache:/app/cache
+    restart: unless-stopped
+    logging: *logging
+
+  worker:
+    # Same image as the API; runs queued long work (python -m app.worker).
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        FLOW_GIT_COMMIT: ${FLOW_GIT_COMMIT:-}
+    command: ["python", "-m", "app.worker"]
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      ENVIRONMENT: production
+      APP_ENV: production
+      API_PUBLIC_URL: http://127.0.0.1:8080
+      JWT_SECRET: ${JWT_SECRET:-}
+      WORKER_MODE: ${WORKER_MODE:-external}
+      FLOWSHORTS_RENDER_ROOT: /app/cache/renders
+    volumes:
+      # The same folders as the API: jobs, renders and the work queue are shared through them.
+      - api-data:/app/data
+      - api-outputs:/app/outputs
+      - api-cache:/app/cache
+    depends_on:
+      api:
+        condition: service_healthy
+    # The image's HEALTHCHECK probes the API port; a worker serves no HTTP.
+    healthcheck:
+      disable: true
+    restart: unless-stopped
+    logging: *logging
+
+  web:
+    build:
+      context: ./frontend
+      # Read from the shell or a root-level .env (frontend/.env.* is not copied into the image).
+      args:
+        APP_ENV: production
+        FLOW_GIT_COMMIT: ${FLOW_GIT_COMMIT:-}
+        VITE_BIZ_NAME: ${VITE_BIZ_NAME:-}
+        VITE_BIZ_OWNER: ${VITE_BIZ_OWNER:-}
+        VITE_BIZ_REG_NO: ${VITE_BIZ_REG_NO:-}
+        VITE_BIZ_MAIL_ORDER_NO: ${VITE_BIZ_MAIL_ORDER_NO:-}
+        VITE_BIZ_ADDRESS: ${VITE_BIZ_ADDRESS:-}
+        VITE_BIZ_PHONE: ${VITE_BIZ_PHONE:-}
+        VITE_BIZ_EMAIL: ${VITE_BIZ_EMAIL:-}
+        VITE_PRIVACY_OFFICER_NAME: ${VITE_PRIVACY_OFFICER_NAME:-}
+        VITE_PRIVACY_OFFICER_CONTACT: ${VITE_PRIVACY_OFFICER_CONTACT:-}
+        VITE_POLICY_EFFECTIVE_DATE: ${VITE_POLICY_EFFECTIVE_DATE:-}
+        VITE_SITE_URL: ${VITE_SITE_URL:-}
+        VITE_RECOMMENDED_PLAN: ${VITE_RECOMMENDED_PLAN:-pro}
+        ANDROID_PACKAGE_NAME: ${ANDROID_PACKAGE_NAME:-}
+        ANDROID_CERT_SHA256: ${ANDROID_CERT_SHA256:-}
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *logging
+
+volumes:
+  api-data:
+  api-outputs:
+  api-cache:
