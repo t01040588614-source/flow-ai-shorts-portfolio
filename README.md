@@ -4,7 +4,9 @@
 
 > 이 저장소는 **포트폴리오용 발췌본**입니다. 실제 서비스 코드는 비공개 저장소에 있고, 여기에는 설계가 잘 드러나는 대표 코드와 설명만 담았습니다. 발췌한 파일은 원래 경로를 그대로 두었지만 이 저장소만으로는 실행되지 않습니다.
 
-![첫 화면](screenshots/home.png)
+![시연: 주제 한 줄을 넣으면 숏폼이 완성되는 과정](screenshots/demo.gif)
+
+<sub>운영과 같은 도커 환경에서 녹화했습니다(기다리는 구간은 3배 빠르게, 실제로는 약 15초). AI 키 없이 도는 무료 경로(기본 화면 + 무료 음성)의 결과이고, AI 그림을 켜면 아래 샘플처럼 나옵니다. [MP4로 보기](media/demo.mp4)</sub>
 
 ## 무엇을 하나요
 
@@ -28,8 +30,8 @@
 | 백엔드 | Python 3.12, FastAPI, Pydantic, SQLite, OpenAI SDK, faster-whisper(로컬 음성 인식), edge-tts, FFmpeg, OpenCV |
 | 프론트엔드 | React 19, TypeScript 7, Vite 8, React Router |
 | 영상 합성 | FFmpeg 필터 그래프(Node 렌더러) — drawtext·ASS 자막, 점프컷, 크롭·펀치인 |
-| 인프라 | Docker Compose(api · worker · web/nginx · Caddy HTTPS), 무중단에 가까운 배포 스크립트와 자동 되돌리기 |
-| 품질 | pytest 1,304개 · Vitest 585개 · Playwright E2E 68개, GitHub Actions CI, ruff · oxlint · pyright |
+| 인프라 | Docker Compose(api · worker · web/nginx · Caddy HTTPS), 무중단에 가까운 배포 스크립트와 자동 되돌리기, `.env` 한 줄로 결제 없는 데모로 바꾸는 포트폴리오 모드 |
+| 품질 | pytest 1,308개 · Vitest 590개 · Playwright E2E 68개, GitHub Actions CI, ruff · oxlint · pyright |
 
 규모: 백엔드 약 5.8만 줄(395개 파일), 프론트엔드 약 2.9만 줄(234개 파일), 시험 코드 약 3.8만 줄. 2026-08-24부터 커밋 380여 개.
 
@@ -58,6 +60,8 @@ flowchart LR
 
 ## 화면
 
+![첫 화면](screenshots/home.png)
+
 | 긴 영상 처리 중 | 쇼츠 후보 고르기 |
 |---|---|
 | ![처리 중](screenshots/longform-processing.png) | ![후보](screenshots/longform-candidates.png) |
@@ -78,6 +82,7 @@ flowchart LR
 | 14일 보관 정리가 실제로 안 돎 | 관리자 버튼으로만 돌았고, 결과 파일 이름도 못 알아봄 | 1시간마다 도는 정리에 넣고, 진행 중인 작업은 건드리지 않게 상태별 규칙과 시험 8개 |
 | 백업 복원이 zip 안의 무엇이든 덮어씀 | 경로만 확인하고 파일 종류는 보지 않음 | `.env`와 DB 파일만 꺼내도록 허용 목록으로 바꿈 |
 | 토큰 재발급 경쟁 | 탭 여러 개가 동시에 재발급하면 한쪽이 로그아웃됨 | 브라우저 Web Locks로 순서를 맞추고, 서버는 재발급 토큰 재사용을 감지 |
+| CI에서만 가끔 실패하는 계산 시험 | 검사 서버 CPU에 따라 float32 마지막 자리(약 6e-8)가 달라짐 | 비트 단위 비교 대신 인식 결과에 영향 없는 허용 오차로 |
 
 ## 발췌한 코드
 
@@ -97,6 +102,7 @@ flowchart LR
 | [`frontend/src/lib/apiClient.ts`](code/frontend/src/lib/apiClient.ts) | 쿠키 인증, 탭 간 재발급 잠금, 게이트웨이 오류를 사람이 읽는 문장으로 |
 | [`frontend/src/features/longform/useLongformUpload.tsx`](code/frontend/src/features/longform/useLongformUpload.tsx) | 나눠 올리기·일시정지·새로고침 뒤 이어 올리기, 처리 상태 확인 |
 | [`frontend/src/features/timeline/fcpXml.ts`](code/frontend/src/features/timeline/fcpXml.ts) | 타임라인 → FCPXML(프레임 단위 정확한 시간, 트랙별 레인) |
+| [`frontend/src/lib/portfolioMode.tsx`](code/frontend/src/lib/portfolioMode.tsx) | 포트폴리오 모드 — 빌드 설정 한 줄로 가격·구매를 숨기고 데모 안내(플레이스토어 앱 가격 숨김과 같은 장치) |
 | [`docker-compose.yml`](code/docker-compose.yml) · [`frontend/nginx.conf`](code/frontend/nginx.conf) · [`backend/Dockerfile`](code/backend/Dockerfile) | 서비스 구성, 비권한 사용자 실행, 로그 순환, 헬스체크 |
 | [`scripts/deploy.sh`](code/scripts/deploy.sh) | 빌드 → 설정 점검 → 재시작 → 상태 확인 → 실패하면 이전 이미지로 자동 되돌리기 |
 | [`.github/workflows/ci.yml`](code/.github/workflows/ci.yml) | 백엔드(ruff·pytest)와 프론트엔드(oxlint·Vitest·빌드·스모크) 자동 검사 |
