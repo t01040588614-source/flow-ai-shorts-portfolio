@@ -67,3 +67,54 @@ jobs:
 
       - name: Smoke check
         run: npm run test:smoke
+
+  e2e:
+    name: Browser E2E
+    # Only after the fast checks pass: this job installs both stacks and takes several minutes.
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Same as backend/Dockerfile: ffmpeg with drawtext and Korean fonts.
+      - name: Install ffmpeg and Korean fonts
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk
+
+      # playwright.config.ts starts the API with backend/.venv's Python, as on a dev PC.
+      - name: Backend virtualenv
+        working-directory: backend
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -c constraints.txt -r requirements-dev.txt
+          .venv/bin/pip install --no-deps mediapipe==1.1.1
+          .venv/bin/pip install -r requirements-mediapipe.txt
+
+      - name: Frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # The config uses the system Chrome (channel "chrome"), which GitHub's Ubuntu runners include.
+      - name: Run E2E
+        working-directory: frontend
+        run: npx playwright test --workers=1
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          retention-days: 7

@@ -31,7 +31,7 @@
 | 프론트엔드 | React 19, TypeScript 7, Vite 8, React Router |
 | 영상 합성 | FFmpeg 필터 그래프(Node 렌더러) — drawtext·ASS 자막, 점프컷, 크롭·펀치인 |
 | 인프라 | Docker Compose(api · worker · web/nginx · Caddy HTTPS), 무중단에 가까운 배포 스크립트와 자동 되돌리기, `.env` 한 줄로 결제 없는 데모로 바꾸는 포트폴리오 모드 |
-| 품질 | pytest 1,308개 · Vitest 590개 · Playwright E2E 68개, GitHub Actions CI, ruff · oxlint · pyright |
+| 품질 | pytest 1,312개 · Vitest 593개 · Playwright E2E 68개, GitHub Actions CI(E2E까지 리눅스에서), ruff · oxlint · pyright |
 
 규모: 백엔드 약 5.8만 줄(395개 파일), 프론트엔드 약 2.9만 줄(234개 파일), 시험 코드 약 3.8만 줄. 2026-08-24부터 커밋 380여 개.
 
@@ -105,7 +105,8 @@ flowchart LR
 | [`frontend/src/lib/portfolioMode.tsx`](code/frontend/src/lib/portfolioMode.tsx) | 포트폴리오 모드 — 빌드 설정 한 줄로 가격·구매를 숨기고 데모 안내(플레이스토어 앱 가격 숨김과 같은 장치) |
 | [`docker-compose.yml`](code/docker-compose.yml) · [`frontend/nginx.conf`](code/frontend/nginx.conf) · [`backend/Dockerfile`](code/backend/Dockerfile) | 서비스 구성, 비권한 사용자 실행, 로그 순환, 헬스체크 |
 | [`scripts/deploy.sh`](code/scripts/deploy.sh) | 빌드 → 설정 점검 → 재시작 → 상태 확인 → 실패하면 이전 이미지로 자동 되돌리기 |
-| [`.github/workflows/ci.yml`](code/.github/workflows/ci.yml) | 백엔드(ruff·pytest)와 프론트엔드(oxlint·Vitest·빌드·스모크) 자동 검사 |
+| [`.github/workflows/ci.yml`](code/.github/workflows/ci.yml) | 백엔드(ruff·pytest)·프론트엔드(oxlint·Vitest·빌드·스모크)·브라우저 E2E 68개 자동 검사 |
+| [`scripts/server_setup.sh`](code/scripts/server_setup.sh) | 새 Ubuntu 서버(x86·ARM) 한 번에 준비: 보안 업데이트, Docker, 방화벽(Oracle 기본 규칙 포함), 설정 파일(무작위 비밀키), 백업 예약 — 여러 번 실행해도 안전 |
 | 시험 예시 | [`test_longform_disk.py`](code/backend/tests/test_longform_disk.py), [`test_env_backup_restore_empty.py`](code/backend/tests/test_env_backup_restore_empty.py), [`test_launch_check.py`](code/backend/tests/test_launch_check.py), [`fcpXml.test.ts`](code/frontend/src/features/timeline/fcpXml.test.ts), [E2E 세션·메일 시나리오](code/frontend/e2e/scenarios/26-session-and-mail.spec.ts) |
 
 ## 일하는 방식
